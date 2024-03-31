@@ -1,18 +1,22 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::helpers::{convert_0x88_to_alg, convert_alg_to_0x88};
+use crate::helpers::{convert_0x88_to_alg, convert_alg_to_0x88, Direction};
+use crate::move_and_undo::{MoveFlag, MoveInfo, UndoInfo};
 use crate::peices::{convert_color_and_type_to_u8, extract_color_and_type_from_u8, Color, Peice};
 
+/// Stores a position
 pub struct Position {
     pub board: [u8; 128],
     pub information: Information,
+    pub undo_information: Vec<UndoInfo>,
 }
 
+/// Stores all additional information needed in a position.
 pub struct Information {
     pub active_color: Color,
     pub castling_rights: [[bool; 2]; 2],
-    pub enpassant_square: Option<u8>,
+    pub enpassant_sq0x88: Option<u8>,
     pub half_move_clock: u8, // NOTE: for 50 move rule.
     pub full_move_clock: usize,
 }
@@ -66,10 +70,10 @@ impl Position {
             ];
         }
 
-        let mut enpassant_square = None;
+        let mut enpassant_sq0x88 = None;
         if let Some(enpassant_info) = iterator.next() {
             if enpassant_info != "-" {
-                enpassant_square = Some(convert_alg_to_0x88(enpassant_info.to_string()));
+                enpassant_sq0x88 = Some(convert_alg_to_0x88(enpassant_info.to_string()).unwrap());
             }
         }
 
@@ -88,10 +92,11 @@ impl Position {
             information: Information {
                 active_color,
                 castling_rights,
-                enpassant_square,
+                enpassant_sq0x88,
                 half_move_clock,
                 full_move_clock,
             },
+            undo_information: vec![],
         };
     }
 
@@ -111,7 +116,7 @@ impl Position {
 
         // NOTE: We start in the upper most left corner. moving from A8 to B8 ect.
         for rank in (0..8).rev() {
-            for file in (0..8) {
+            for file in 0..8 {
                 let sq0x88 = 16 * rank + file;
                 match extract_color_and_type_from_u8(self.board[sq0x88]) {
                     None => counter += 1,
@@ -164,7 +169,7 @@ impl Position {
         });
 
         let mut enpassant_information = String::from("-");
-        if let Some(square_index) = self.information.enpassant_square {
+        if let Some(square_index) = self.information.enpassant_sq0x88 {
             enpassant_information = convert_0x88_to_alg(square_index).to_owned();
         }
         strings.push(&enpassant_information);
@@ -180,6 +185,30 @@ impl Position {
     /// Simply prints the board to the terminal
     pub fn print_0x88_board(&self) {
         todo!();
+    }
+
+    /// Plays and undoes a move.
+    pub fn make_move(&mut self, move_info: MoveInfo) {
+        match move_info.flag {
+            MoveFlag::QUIET => {
+                self.board[move_info.to as usize] = self.board[move_info.frm as usize];
+            }
+            MoveFlag::DOBULE_PUSH => {
+                self.board[move_info.to as usize] = self.board[move_info.frm as usize];
+                self.information.enpassant_sq0x88 = Some(move_info.to - Direction::NORTH as u8);
+            }
+            MoveFlag::EN_PASSANT => {
+                self.board[move_info.to as usize] = self.board[move_info.frm as usize];
+                self.board[(move_info.to as usize) + (Direction::NORTH as usize)] = 0;
+            }
+            _ => todo!(),
+        }
+        self.board[move_info.frm as usize] = 0;
+    }
+
+    /// Undoes the latest move.
+    pub fn undo_move(&mut self) {
+        let undo_info = self.undo_information.last().unwrap();
     }
 }
 

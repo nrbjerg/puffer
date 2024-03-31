@@ -1,4 +1,6 @@
 mod helpers;
+mod move_and_undo;
+mod move_generator;
 mod peices;
 mod position;
 
