@@ -15,10 +15,6 @@ pub enum MoveFlag {
     PR_BISHOP,
     PR_ROOK,
     PR_QUEEN,
-    PC_KNIGHT,
-    PC_BISHOP,
-    PC_ROOK,
-    PC_QUEEN,
 }
 
 /// Stores everything needed to make a move.
